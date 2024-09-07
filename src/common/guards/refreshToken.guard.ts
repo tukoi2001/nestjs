@@ -19,7 +19,7 @@ export class RefreshTokenGuard implements CanActivate {
     }
     try {
       const payload = await this.jwtService.verifyAsync(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET,
+        secret: process.env.JWT_SECRET_KEY,
       });
       request['user'] = payload;
     } catch {
