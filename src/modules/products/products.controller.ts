@@ -1,7 +1,9 @@
 import { Body, Controller, Get, Post, Injectable, Param } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './product.dto';
 
+@ApiTags('product')
 @Injectable()
 @Controller('product')
 export class ProductsController {

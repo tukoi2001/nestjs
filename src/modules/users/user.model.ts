@@ -37,6 +37,10 @@ export class User {
   refreshToken: string | null;
 
   @Prop()
+  @Exclude()
+  resetToken: string | null;
+
+  @Prop()
   otp: string | null;
 
   @Prop()

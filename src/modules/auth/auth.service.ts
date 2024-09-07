@@ -6,13 +6,14 @@ import {
 import * as argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { MailerService } from '@nestjs-modules/mailer';
 import { pick } from 'lodash';
 import { StatusCode } from 'src/enums/app';
 import { UsersService } from '../users/user.service';
 import { OtpService } from '../otp/otp.service';
 import { CreateUserDto } from '../users/user.dto';
 import { UserDocument } from '../users/user.model';
-import { LoginDto } from './auth.dto';
+import { SignInDto } from './auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly otpService: OtpService,
+    private readonly mailerService: MailerService,
   ) {}
 
   async signUp(createUserDto: CreateUserDto): Promise<Auth.SignUpResponse> {
@@ -56,7 +58,7 @@ export class AuthService {
     };
   }
 
-  async signIn(loginDto: LoginDto): Promise<Auth.SignInResponse> {
+  async signIn(loginDto: SignInDto): Promise<Auth.SignInResponse> {
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
       throw new BadRequestException('User does not exist!');
@@ -91,7 +93,7 @@ export class AuthService {
     };
   }
 
-  async logout(userId: string): Promise<App.BaseResponse> {
+  async signOut(userId: string): Promise<App.BaseResponse> {
     await this.usersService.update(userId, {
       refreshToken: null,
     });
@@ -136,7 +138,7 @@ export class AuthService {
           username,
         },
         {
-          secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
+          secret: this.configService.get<string>('JWT_SECRET_KEY'),
           expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRES'),
         },
       ),
@@ -146,7 +148,7 @@ export class AuthService {
           username,
         },
         {
-          secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
+          secret: this.configService.get<string>('JWT_SECRET_KEY'),
           expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES'),
         },
       ),
@@ -260,6 +262,60 @@ export class AuthService {
     return {
       statusCode: StatusCode.Ok,
       message: 'New OTP sent successfully',
+    };
+  }
+
+  async saveResetToken(userId: string, resetToken: string): Promise<void> {
+    const hashedResetToken = await this.hashData(resetToken);
+    await this.usersService.update(userId, {
+      resetToken: hashedResetToken,
+    });
+  }
+
+  async forgotPassword(email: string): Promise<App.BaseResponse> {
+    const user = await this.usersService.findByEmail(email);
+    const resetToken = await this.jwtService.signAsync(
+      { sub: user.id, email },
+      {
+        secret: this.configService.get<string>('JWT_SECRET_KEY'),
+        expiresIn: this.configService.get<string>('JWT_RESET_EXPIRES'),
+      },
+    );
+    await this.saveResetToken(user.id, resetToken);
+    const clientUrl = this.configService.get<string>('RESET_PASSWORD_URL');
+    const resetUrl = `${clientUrl}?token=${resetToken}`;
+    const username = `${user.firstName} ${user.lastName}`;
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Password Reset',
+      template: './reset-password',
+      context: { username, resetUrl },
+    });
+    return {
+      statusCode: StatusCode.Created,
+      message:
+        'Reset password sent successfully! Please check your email to reset password!',
+    };
+  }
+
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<App.BaseResponse> {
+    const payload = await this.jwtService.verifyAsync(token, {
+      secret: this.configService.get<string>('JWT_SECRET_KEY'),
+    });
+    const user = await this.usersService.findById(payload.sub);
+    const resetTokenMatches = await argon2.verify(user.resetToken, token);
+    if (!resetTokenMatches) {
+      throw new ForbiddenException('Invalid reset token!');
+    }
+    const hashedPassword = await this.hashData(newPassword);
+    await this.usersService.update(user.id, { password: hashedPassword });
+    await this.usersService.update(user.id, { resetToken: null });
+    return {
+      statusCode: StatusCode.Created,
+      message: 'Reset password successfully!',
     };
   }
 }

@@ -10,12 +10,15 @@ import {
   UseInterceptors,
   Injectable,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiTags } from '@nestjs/swagger';
 import { User } from './user.model';
 import { UsersService } from './user.service';
 import { CreateUserDto } from './user.dto';
 import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import MongooseClassSerializerInterceptor from 'src/interceptor/mongooseClassSerializer.interceptor';
 
+@ApiTags('users')
+@ApiBearerAuth('token')
 @Injectable()
 @Controller('users')
 export class UsersController {
@@ -23,6 +26,7 @@ export class UsersController {
 
   @UseGuards(AccessTokenGuard)
   @Post()
+  @ApiBody({ type: CreateUserDto })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
