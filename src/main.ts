@@ -5,6 +5,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { PORT } from './common/constants/app';
+import { ExpiredTokenFilter } from './filters/expired-token.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -25,6 +26,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
+  app.useGlobalFilters(new ExpiredTokenFilter());
   await app.listen(PORT);
   if (module.hot) {
     module.hot.accept();

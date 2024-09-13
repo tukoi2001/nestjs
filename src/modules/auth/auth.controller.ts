@@ -4,6 +4,7 @@ import {
   Get,
   Post,
   Req,
+  UseFilters,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AccessTokenGuard } from 'src/common/guards/accessToken.guard';
 import { RefreshTokenGuard } from 'src/common/guards/refreshToken.guard';
+import { ExpiredTokenFilter } from 'src/filters/expired-token.filter';
 import MongooseClassSerializerInterceptor from 'src/interceptor/mongooseClassSerializer.interceptor';
 import { CreateUserDto as SignUpDto } from '../users/user.dto';
 import { User, UserDocument } from '../users/user.model';
@@ -45,6 +47,7 @@ export class AuthController {
     return this.authService.signIn(data);
   }
 
+  @UseFilters(ExpiredTokenFilter)
   @ApiBearerAuth('token')
   @UseGuards(AccessTokenGuard, ThrottlerGuard)
   @Get('sign-out')
@@ -64,6 +67,7 @@ export class AuthController {
     return this.authService.refreshToken(userId, refreshToken);
   }
 
+  @UseFilters(ExpiredTokenFilter)
   @ApiBearerAuth('token')
   @UseInterceptors(MongooseClassSerializerInterceptor(User))
   @UseGuards(AccessTokenGuard, ThrottlerGuard)
