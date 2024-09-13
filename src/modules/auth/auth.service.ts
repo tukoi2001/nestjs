@@ -214,7 +214,7 @@ export class AuthService {
   async activateAccount(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      throw new ForbiddenException('User not found');
+      throw new BadRequestException('User not found');
     }
     await this.usersService.update(user._id, {
       isActive: true,
@@ -274,6 +274,9 @@ export class AuthService {
 
   async forgotPassword(email: string): Promise<App.BaseResponse> {
     const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new BadRequestException('User does not exist!');
+    }
     const resetToken = await this.jwtService.signAsync(
       { sub: user.id, email },
       {
