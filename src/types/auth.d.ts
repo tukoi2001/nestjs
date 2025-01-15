@@ -14,7 +14,7 @@ declare namespace Auth {
     userInfo: Partial<UserDocument>;
   };
 
-  type TokenResponse = {
+  type TokenResponse = App.BaseResponse & {
     accessToken: string;
     refreshToken: string;
   };

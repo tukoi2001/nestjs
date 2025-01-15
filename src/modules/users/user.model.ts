@@ -24,10 +24,10 @@ export class User {
     match: /^(\+\d{1,3}[- ]?)?\d{10}$/,
     required: false,
   })
-  phoneNumber: string;
+  phoneNumber?: string;
 
-  @Prop()
-  address: string;
+  @Prop({ required: false })
+  address?: string;
 
   @Prop({ default: AuthRole.USER })
   role: string;

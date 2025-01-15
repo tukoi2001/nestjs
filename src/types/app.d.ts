@@ -7,6 +7,6 @@ declare namespace App {
 
   type BaseResponse = {
     statusCode: StatusCode;
-    message: string;
+    message?: string;
   };
 }

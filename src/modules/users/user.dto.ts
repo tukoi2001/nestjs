@@ -10,7 +10,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateUserDto {
   @ApiProperty({
-    description: 'First name is required',
+    description: 'First name is required.',
     example: 'Doe',
   })
   @IsNotEmpty({ message: 'First name is required.' })
@@ -22,7 +22,7 @@ export class CreateUserDto {
   firstName: string;
 
   @ApiProperty({
-    description: 'Last name is required',
+    description: 'Last name is required.',
     example: 'John',
   })
   @IsNotEmpty({ message: 'Last name is required.' })
@@ -33,17 +33,12 @@ export class CreateUserDto {
   })
   lastName: string;
 
-  @ApiProperty({
-    description: 'Phone number is required',
+  @ApiPropertyOptional({
     example: '0345678912',
   })
   @IsString()
-  @IsNotEmpty()
-  @Matches(/^(\+?\d{1,4}[-.\s]?)?(\(?\d{1,4}\)?[-.\s]?)?[\d\s-]{3,15}$/, {
-    message:
-      'Invalid phone number. It must be a valid international phone number.',
-  })
-  phoneNumber: string;
+  @IsOptional()
+  phoneNumber?: string;
 
   @ApiProperty({
     type: 'email',
@@ -64,17 +59,13 @@ export class CreateUserDto {
   password: string;
 
   @ApiPropertyOptional({
-    description: 'The address of the user',
+    description: 'The address of the user.',
     example: 'Da Nang',
   })
   @IsString({ message: 'Address must be a string.' })
   @IsOptional()
   address?: string;
 
-  @ApiPropertyOptional({
-    description: 'The role of the user',
-    example: 'user',
-  })
   @IsString({ message: 'Role must be a string.' })
   @IsOptional()
   role?: string;

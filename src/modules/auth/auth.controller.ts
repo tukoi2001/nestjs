@@ -72,7 +72,7 @@ export class AuthController {
   @UseInterceptors(MongooseClassSerializerInterceptor(User))
   @UseGuards(AccessTokenGuard, ThrottlerGuard)
   @Get('me')
-  userInfo(@Req() req: Request): Promise<Partial<UserDocument>> {
+  userInfo(@Req() req: Request): Promise<Auth.SignUpResponse> {
     const userId = req.user['sub'];
     return this.authService.getMyProfile(userId);
   }

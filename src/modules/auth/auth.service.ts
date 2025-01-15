@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  UnauthorizedException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { JwtService } from '@nestjs/jwt';
@@ -12,7 +13,6 @@ import { StatusCode } from 'src/enums/app';
 import { UsersService } from '../users/user.service';
 import { OtpService } from '../otp/otp.service';
 import { CreateUserDto } from '../users/user.dto';
-import { UserDocument } from '../users/user.model';
 import { SignInDto } from './auth.dto';
 
 @Injectable()
@@ -103,18 +103,22 @@ export class AuthService {
     };
   }
 
-  async getMyProfile(userId: string): Promise<Partial<UserDocument>> {
+  async getMyProfile(userId: string): Promise<Auth.SignUpResponse> {
     const user = await this.usersService.findById(userId);
-    return pick(user, [
-      'firstName',
-      'lastName',
-      'email',
-      'phoneNumber',
-      'createdAt',
-      'updatedAt',
-      'role',
-      'isActive',
-    ]);
+    return {
+      message: 'Success',
+      statusCode: StatusCode.Ok,
+      userInfo: pick(user, [
+        'firstName',
+        'lastName',
+        'email',
+        'phoneNumber',
+        'createdAt',
+        'updatedAt',
+        'role',
+        'isActive',
+      ]),
+    };
   }
 
   async updateRefreshToken(
@@ -154,6 +158,8 @@ export class AuthService {
       ),
     ]);
     return {
+      statusCode: StatusCode.Ok,
+      message: 'Success',
       accessToken,
       refreshToken,
     };
@@ -182,7 +188,12 @@ export class AuthService {
       user.email,
     );
     await this.updateRefreshToken(user.id, refreshToken);
-    return { accessToken, refreshToken };
+    return {
+      statusCode: StatusCode.Ok,
+      message: 'Success',
+      accessToken,
+      refreshToken,
+    };
   }
 
   async hashData(data: string): Promise<string> {
@@ -243,10 +254,7 @@ export class AuthService {
         message: 'Account activated successfully',
       };
     }
-    return {
-      statusCode: StatusCode.Invalid,
-      message: 'Invalid OTP',
-    };
+    throw new BadRequestException('Invalid OTP');
   }
 
   async resendOtp(email: string): Promise<App.BaseResponse> {
@@ -285,8 +293,8 @@ export class AuthService {
       },
     );
     await this.saveResetToken(user.id, resetToken);
-    const clientUrl = this.configService.get<string>('RESET_PASSWORD_URL');
-    const resetUrl = `${clientUrl}?token=${resetToken}`;
+    const clientUrl = this.configService.get<string>('CLIENT_URL');
+    const resetUrl = `${clientUrl}/reset-password?token=${resetToken}`;
     const username = `${user.firstName} ${user.lastName}`;
     await this.mailerService.sendMail({
       to: email,
@@ -305,9 +313,17 @@ export class AuthService {
     token: string,
     newPassword: string,
   ): Promise<App.BaseResponse> {
-    const payload = await this.jwtService.verifyAsync(token, {
-      secret: this.configService.get<string>('JWT_SECRET_KEY'),
-    });
+    let payload;
+    try {
+      payload = await this.jwtService.verifyAsync(token, {
+        secret: this.configService.get<string>('JWT_SECRET_KEY'),
+      });
+    } catch (error) {
+      if (error.message === 'jwt malformed') {
+        throw new ForbiddenException('Malformed JWT token');
+      }
+      throw new UnauthorizedException('Invalid or expired JWT token');
+    }
     const user = await this.usersService.findById(payload.sub);
     const resetTokenMatches = await argon2.verify(user.resetToken, token);
     if (!resetTokenMatches) {
